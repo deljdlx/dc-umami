@@ -1,0 +1,53 @@
+services:
+  umami-proxy:
+    image: nginx
+    container_name: umami-proxy
+    ports:
+      - "8080:80"
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.umami-proxy.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.umami-proxy.entrypoints=websecure"
+      - "traefik.http.routers.umami-proxy.tls.certresolver=myresolver"
+  umami:
+    image: ghcr.io/mikecao/umami:postgresql-latest
+    container_name: umami
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://umami:umami@postgres/umami
+      APP_SECRET: "supersecretkey"
+      TRACKER_SCRIPT_NAME: "stats.js"
+    depends_on:
+      - postgres
+    networks:
+      - web
+      - umami
+
+  postgres:
+    image: postgres:13
+    container_name: umami-db
+    restart: always
+    environment:
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami
+      POSTGRES_DB: umami
+    volumes:
+      - umami_db:/var/lib/postgresql/data
+    networks:
+      - umami
+
+volumes:
+  umami_db:
+
+networks:
+  web:
+    name: web
+    external: true
+  umami:
+    name: umami
+    driver: bridge
